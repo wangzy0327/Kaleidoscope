@@ -1,0 +1,77 @@
+
+# Merge files created by git.
+*.orig
+# Byte compiled python modules.
+*.pyc
+# vim swap files
+.*.sw?
+.sw?
+#OS X specific files.
+.DS_store
+
+# Ignore the user specified CMake presets in subproject directories.
+/*/CMakeUserPresets.json
+
+# Nested build directory
+/build*
+!buildbot
+
+# Visual Studio built-in CMake configuration
+/CMakeSettings.json
+# CLion project configuration
+/.idea
+cmake-build-debug/
+
+#==============================================================================#
+# Directories to ignore (do not add trailing '/'s, they skip symlinks).
+#==============================================================================#
+# VS2017 and VSCode config files.
+.vscode
+.vs
+
+######################
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode
+
+#####################
+# Java Ignore files #
+#####################
+*.class
+
+#####################
+# C++ Ignore files #
+#####################
+*.gch
+*.out
+
+##########################
+# Jetbrains Ignore files #
+##########################
+*.iml
+.idea/
+out/
+target/
+classes/
+src/main/resource/
+
+#################
+# Keynote       #
+#################
+*.key
+
+#################
+# Course       #
+#################
+ppt/
+text-contents/
+*.pdf
+*.PDF
+*.key
