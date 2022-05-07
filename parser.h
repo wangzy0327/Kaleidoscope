@@ -5,90 +5,16 @@
 #ifndef KALEIDOSCOPE_PARSER_H
 #define KALEIDOSCOPE_PARSER_H
 
+//Syntax Parser
+//语法解析器
+
+#include "lexer.h"
+#include "ast.h"
 #include <cstring>
 #include <string>
-#include "lexer.h"
 
 using namespace std;
 
-//ExprAST - Base class for all expression nodes.
-class ExprAST{
-public:
-    virtual ~ExprAST();
-};
-
-
-//NumberExprAST - Expression class for numeric literals like "1.0"
-class NumberExprAST : public ExprAST{
-    double Val;
-public:
-    NumberExprAST(double val) : Val(val){}
-};
-
-//VariableExprAST用于保存变量名
-// VariableExprAST - Expression class for referencing a variable, like "a".
-class VariableExprAST : public ExprAST{
-    string Name;
-public:
-    VariableExprAST(const string &Name):Name(Name){}
-};
-
-//BinaryExprAST用于保存运算符（如+）
-// BinaryExprAST - Expression class for a binary operator.
-class BinaryExprAST : public ExprAST{
-    char Op;
-    unique_ptr<ExprAST> LHS,RHS;
-public:
-    BinaryExprAST(char op,unique_str<ExprAST> LHS,
-                  unique_str<ExprAST> RHS) : Op(op),LHS(move(LHS)),RHS(move(RHS)){}
-};
-
-//CallExprAST用于保存函数名和用作参数的表达式列表
-// CallExprAST - Expression class for function calls.
-class CallExprAST : public ExprAST {
-    std::string Callee;
-    std::vector<std::unique_ptr<ExprAST>> Args;
-
-public:
-    CallExprAST(const std::string &Callee,
-                std::vector<std::unique_ptr<ExprAST>> Args)
-            : Callee(Callee), Args(std::move(Args)) {}
-};
-
-//函数的接口
-// PrototypeAST - This class represents the "prototype" for a function,
-/// which captures its name, and its argument names (thus implicitly the number
-/// of arguments the function takes).
-class PrototypeAST {
-    std::string Name;
-    std::vector<std::string> Args;
-
-public:
-    PrototypeAST(const std::string &name, std::vector<std::string> Args)
-            : Name(name), Args(std::move(Args)) {}
-
-    const std::string &getName() const { return Name; }
-};
-
-//函数本身
-/// FunctionAST - This class represents a function definition itself.
-class FunctionAST {
-    std::unique_ptr<PrototypeAST> Proto;
-    std::unique_ptr<ExprAST> Body;
-
-public:
-    FunctionAST(std::unique_ptr<PrototypeAST> Proto,
-                std::unique_ptr<ExprAST> Body)
-            : Proto(std::move(Proto)), Body(std::move(Body)) {}
-};
-
-// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the current
-// token the parser is looking at.  getNextToken reads another token from the
-// lexer and updates CurTok with its results.
-//tok type
-//这在词法分析器周围实现了一个简单的标记缓冲区
-//这允许我们在词法分析器返回时提前查看一个标记
-//我们的解析器中的每个函数都假定CurTok是需要解析的当前标记
 static int CurTok;
 static int getNextToken() {
     return CurTok = getTok();
@@ -105,6 +31,99 @@ std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
     LogError(Str);
     return nullptr;
 }
+
+//解析基本表达式
+//数值常量
+
+//调用它时，带解析语元只能是tok_number
+//该函数用刚解析出的数值构造出NumberExprAST节点，然后令词法分析器继续读取下一个语元
+//numberexpr := number
+static std::unique_str<ExprAST> ParseNumberExpr(){
+    std::unique_ptr<ExprAST> Result(new NumberExprAST(NumVal));
+    getNextToken();
+    return std::move(Result);
+}
+
+//消化了所有与当前生成规则相关的所有语元
+//还把下一个待解析的语元放进了词法分析器的语元缓冲
+//1.调用该函数时，待解析的语元只能是(,然而解析完子表达式后，紧跟着的语元却不一定是)。 比如用户输入的是(4 x而不是(4)
+//2.该函数的另一个特点在于递归调用了ParseExpression.这种手法简化了递归语法的处理。
+//注意，我们没有必要为括号构造AST节点。括号的作用主要还是对表达式进行分组进而引导语法解析过程。当构造完AST后，括号就没用了
+//parentexpr ::= '(' expression ')'
+static std::unique_ptr<ExprAST> ParseParentExpr(){
+    getNextToken(); // eat (
+    auto V = ParseExpression();
+    if(!V)
+        return nullptr;
+    if(CurTok != ')')
+        return LogError("expected ')'");
+    getNextToken();  // eat ).
+    return V;
+}
+
+//负责处理变量引用和函数调用
+//identifierexpr
+// :: = identifier
+// :: = identifier '(' expression* ')'
+//判断它究竟是个独立的变量引用还是个函数调用
+//只要检查紧跟标识符之后的语元是不是(，它就能知道到底应该构造VariableExprAST节点还是CallExprAST节点
+
+static std::unique_ptr<ExprAST> ParseIdentifierExpr(){
+    std::string IdName = IdentifierStr;
+    getNextToken();       // eat identifier.
+    //判断是独立变量
+    if(CurTok != '('){
+        std::unique_ptr<VariableExprAST> SimpleVariable(new VariableExprAST(IdName));
+        return std::move(SimpleVariable);
+    } // Simple variable ref.
+    //Call.
+    //函数调用
+    getNextToken();   // eat (
+    std::vector<std::unique_ptr<ExprAST>> Args;
+    if(CurTok != ')'){
+        while(1){
+            if(auto Arg = ParseExpression())
+                Args.push_back(std::move(Arg));
+            else
+                return nullptr;
+
+            if(CurTok == ')')
+                break;
+            if(CurTok != ',')
+                return LogError("Expected ')' or ',' in argument list");
+            getNextToken();   // eat ,
+        }
+    }
+    // Eat the ')'
+    getNextToken();
+    //含函数名和参数列表的 表达式列表
+    std::unique_ptr<CallExprAST> CallExprList(new CallExprAST(IdName,std::move(Args)));
+    return std::move(CallExprList);
+}
+
+
+//辅助函数
+//判定待解析表达式的类别
+//primary
+// ::= identifierexpr
+// ::= numberexpr
+// ::= parentexpr
+static std::unique_ptr<ExprAST> ParsePrimary(){
+    //根据 CurTok 语元类型来判定表达式类别
+    switch (CurTok) {
+        default:
+            return LogError("unknown token when expecting an expression");
+        case tok_identifier:
+            return ParseIdentifierExpr();
+        case tok_number:
+            return ParseNumberExpr();
+        case '(':
+            return ParseParentExpr();
+    }
+}
+
+//解析二元表达式
+
 
 
 #endif //KALEIDOSCOPE_PARSER_H
