@@ -40,7 +40,7 @@ int getTok(){
     static char lastChar = ' ';
 
     //skip any whitespace.
-    while(isspace(lastChar))
+    while(isspace(lastChar) )
         lastChar = getchar();
 
     if(lastChar == EOF)
@@ -60,7 +60,8 @@ int getTok(){
     }
     //Number:[0-9.]+
     if(isdigit(lastChar) || lastChar == '.'){
-        string NumStr = ""+lastChar;
+        string NumStr = "";
+        NumStr += lastChar;
         while(isdigit(lastChar = getchar()) || lastChar == '.')
             NumStr += lastChar;
         //这里不做数字合法性检查

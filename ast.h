@@ -10,6 +10,8 @@
 
 #include <cstring>
 #include <string>
+#include <memory>
+#include <vector>
 #include "lexer.h"
 
 using namespace std;
@@ -17,7 +19,7 @@ using namespace std;
 //ExprAST - Base class for all expression nodes.
 class ExprAST{
 public:
-    virtual ~ExprAST();
+    virtual ~ExprAST(){};
 };
 
 
@@ -25,7 +27,8 @@ public:
 class NumberExprAST : public ExprAST{
     double Val;
 public:
-    NumberExprAST(double val) : Val(val){}
+    NumberExprAST(double val) : Val(val){};
+//    virtual ~NumberExprAST(){};
 };
 
 //VariableExprAST用于保存变量名
@@ -33,7 +36,8 @@ public:
 class VariableExprAST : public ExprAST{
     string Name;
 public:
-    VariableExprAST(const string &Name):Name(Name){}
+    VariableExprAST(const string &Name):Name(Name){};
+//    virtual ~VariableExprAST(){};
 };
 
 //BinaryExprAST用于保存运算符（如+）
@@ -42,8 +46,9 @@ class BinaryExprAST : public ExprAST{
     char Op;
     unique_ptr<ExprAST> LHS,RHS;
 public:
-    BinaryExprAST(char op,unique_str<ExprAST> LHS,
-                  unique_str<ExprAST> RHS) : Op(op),LHS(move(LHS)),RHS(move(RHS)){}
+    BinaryExprAST(char op,unique_ptr<ExprAST> LHS,
+                  unique_ptr<ExprAST> RHS) : Op(op),LHS(move(LHS)),RHS(move(RHS)){};
+//    virtual ~BinaryExprAST(){};
 };
 
 //CallExprAST用于保存函数名和用作参数的表达式列表
@@ -55,7 +60,8 @@ class CallExprAST : public ExprAST {
 public:
     CallExprAST(const std::string &Callee,
                 std::vector<std::unique_ptr<ExprAST>> Args)
-            : Callee(Callee), Args(std::move(Args)) {}
+            : Callee(Callee), Args(std::move(Args)) {};
+//    virtual ~CallExprAST(){};
 };
 
 //函数的接口
@@ -68,7 +74,8 @@ class PrototypeAST {
 
 public:
     PrototypeAST(const std::string &name, std::vector<std::string> Args)
-            : Name(name), Args(std::move(Args)) {}
+            : Name(name), Args(std::move(Args)) {};
+//    virtual ~PrototypeAST(){};
 
     const std::string &getName() const { return Name; }
 };
@@ -82,7 +89,8 @@ class FunctionAST {
 public:
     FunctionAST(std::unique_ptr<PrototypeAST> Proto,
                 std::unique_ptr<ExprAST> Body)
-            : Proto(std::move(Proto)), Body(std::move(Body)) {}
+            : Proto(std::move(Proto)), Body(std::move(Body)) {};
+//    virtual ~FunctionAST(){};
 };
 
 // CurTok/getNextToken - Provide a simple token buffer.  CurTok is the current
